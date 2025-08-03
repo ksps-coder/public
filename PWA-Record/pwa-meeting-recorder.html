@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#4285f4">
+    <title>AI 會議記錄助手</title>
+    
+    <!-- PWA 相關 -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .tab-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #f5f5f5;
+            padding: 5px;
+            border-radius: 15px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .tab-btn.active {
+            background: white;
+            color: #4285f4;
+            box-shadow: 0 2px 10px rgba(66, 133, 244, 0.2);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .record-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .record-btn.start {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .record-btn.stop {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        
+        .record-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .record-btn.recording::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+        
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #4285f4;
+            background: #f8f9ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #4285f4;
+            background: #f8f9ff;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .timer {
+            text-align: center;
+            font-size: 32px;
+            font-weight: 300;
+            color: #333;
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .settings-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .api-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .process-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #4285f4 0%, #667eea 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        
+        .process-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(66, 133, 244, 0.4);
+        }
+        
+        .process-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4285f4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .result-card {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        
+        .result-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .result-section h3 {
+            color: #4285f4;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .result-section p, .result-section li {
+            line-height: 1.6;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .result-section ul {
+            padding-left: 20px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .action-btn.copy {
+            background: #34a853;
+            color: white;
+        }
+        
+        .action-btn.download {
+            background: #fbbc04;
+            color: white;
+        }
+        
+        .action-btn.share {
+            background: #ea4335;
+            color: white;
+        }
+        
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .history-item:hover {
+            background: #e8eaf6;
+            transform: translateX(5px);
+        }
+        
+        .history-date {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .history-title {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .install-prompt {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .install-prompt-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .install-btn {
+            padding: 10px 20px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎙️ AI 會議記錄助手</h1>
+            <p>智能語音轉文字與會議分析</p>
+        </div>
+        
+        <div class="card">
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="switchTab('record')">錄音</button>
+                <button class="tab-btn" onclick="switchTab('upload')">上傳</button>
+                <button class="tab-btn" onclick="switchTab('history')">歷史</button>
+            </div>
+            
+            <!-- 錄音標籤 -->
+            <div id="record-tab" class="tab-content active">
+                <div class="timer" id="timer">00:00:00</div>
+                <button id="recordBtn" class="record-btn start" onclick="toggleRecording()">
+                    🔴 開始錄音
+                </button>
+                <div id="recordStatus" class="status"></div>
+            </div>
+            
+            <!-- 上傳標籤 -->
+            <div id="upload-tab" class="tab-content">
+                <div class="upload-area" onclick="document.getElementById('audioFile').click()" 
+                     ondragover="handleDragOver(event)" 
+                     ondrop="handleDrop(event)"
+                     ondragleave="handleDragLeave(event)">
+                    <div class="upload-icon">📁</div>
+                    <p>點擊或拖曳音檔到這裡</p>
+                    <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                        支援 MP3, WAV, M4A, WEBM 格式
+                    </p>
+                </div>
+                <input type="file" id="audioFile" class="file-input" accept="audio/*" onchange="handleFileSelect(event)">
+                <div id="uploadStatus" class="status"></div>
+            </div>
+            
+            <!-- 歷史標籤 -->
+            <div id="history-tab" class="tab-content">
+                <div class="history-list" id="historyList">
+                    <p style="text-align: center; color: #999;">暫無記錄</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- API 設定 -->
+        <div class="card">
+            <div class="settings-card">
+                <h3 style="margin-bottom: 10px;">⚙️ API 設定</h3>
+                <input type="password" id="apiKey" class="api-input" 
+                       placeholder="輸入 Gemini API Key" 
+                       value="">
+                <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                    <a href="https://makersuite.google.com/app/apikey" target="_blank">
+                        取得免費 API Key →
+                    </a>
+                </p>
+            </div>
+            
+            <button id="processBtn" class="process-btn" onclick="processAudio()">
+                🚀 開始處理音檔
+            </button>
+        </div>
+        
+        <!-- 載入中 -->
+        <div class="card loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>AI 正在分析音檔...</p>
+            <p style="font-size: 12px; color: #999; margin-top: 10px;">這可能需要幾分鐘</p>
+        </div>
+        
+        <!-- 結果顯示 -->
+        <div class="card result-card" id="resultCard">
+            <h2 style="margin-bottom: 20px; color: #333;">📋 會議記錄</h2>
+            <div id="resultContent"></div>
+            
+            <div class="action-buttons">
+                <button class="action-btn copy" onclick="copyResult()">
+                    📋 複製
+                </button>
+                <button class="action-btn download" onclick="downloadResult()">
+                    💾 下載
+                </button>
+                <button class="action-btn share" onclick="shareResult()">
+                    📤 分享
+                </button>
+            </div>
+            
+            <div class="action-buttons" style="margin-top: 10px;">
+                <button class="action-btn" style="background: #34a853; color: white; width: 100%;" onclick="uploadToSheets()">
+                    📊 上傳到 Google Sheets
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 安裝提示 -->
+    <div class="install-prompt" id="installPrompt">
+        <div class="install-prompt-content">
+            <div>
+                <strong>安裝應用程式</strong>
+                <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                    安裝到主畫面，隨時使用
+                </p>
+            </div>
+            <button class="install-btn" onclick="installApp()">安裝</button>
+        </div>
+    </div>
+    
+    <script>
+        // 全域變數
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingStartTime;
+        let timerInterval;
+        let audioBlob;
+        let deferredPrompt;
+        let currentResult = '';
+        
+        // 初始化
+        window.addEventListener('load', () => {
+            // 載入儲存的 API Key
+            const savedApiKey = localStorage.getItem('geminiApiKey');
+            if (savedApiKey) {
+                document.getElementById('apiKey').value = savedApiKey;
+            }
+            
+            // 載入歷史記錄
+            loadHistory();
+            
+            // 註冊 Service Worker (PWA)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker 註冊成功'))
+                    .catch(err => console.log('Service Worker 註冊失敗:', err));
+            }
+            
+            // 監聽安裝提示
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                document.getElementById('installPrompt').style.display = 'block';
+            });
+        });
+        
+        // 切換標籤
+        function switchTab(tab) {
+            // 切換按鈕狀態
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 切換內容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tab}-tab`).classList.add('active');
+        }
+        
+        // 錄音功能
+        async function toggleRecording() {
+            const btn = document.getElementById('recordBtn');
+            
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                // 開始錄音
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            sampleRate: 44100
+                        } 
+                    });
+                    
+                    // 使用 webm 格式以獲得更好的壓縮
+                    const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
+                        ? 'audio/webm' 
+                        : 'audio/ogg';
+                    
+                    mediaRecorder = new MediaRecorder(stream, { mimeType });
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+                    
+                    mediaRecorder.onstop = async () => {
+                        audioBlob = new Blob(audioChunks, { type: mimeType });
+                        showStatus('recordStatus', '錄音完成！', 'success');
+                        
+                        // 儲存到本地
+                        saveToLocal(audioBlob);
+                    };
+                    
+                    mediaRecorder.start();
+                    recordingStartTime = Date.now();
+                    startTimer();
+                    
+                    btn.textContent = '⏹️ 停止錄音';
+                    btn.classList.remove('start');
+                    btn.classList.add('stop', 'recording');
+                    
+                    showStatus('recordStatus', '錄音中...', 'info');
+                } catch (err) {
+                    showStatus('recordStatus', '無法存取麥克風：' + err.message, 'error');
+                }
+            } else {
+                // 停止錄音
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                stopTimer();
+                
+                btn.textContent = '🔴 開始錄音';
+                btn.classList.remove('stop', 'recording');
+                btn.classList.add('start');
+            }
+        }
+        
+        // 計時器
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const hours = Math.floor(elapsed / 3600).toString().padStart(2, '0');
+                const minutes = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
+                const seconds = (elapsed % 60).toString().padStart(2, '0');
+                document.getElementById('timer').textContent = `${hours}:${minutes}:${seconds}`;
+            }, 1000);
+        }
+        
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+        
+        // 檔案處理
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                audioBlob = file;
+                showStatus('uploadStatus', `已選擇：${file.name}`, 'success');
+                saveToLocal(file);
+            }
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('dragover');
+        }
+        
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('dragover');
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+            
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('audio/')) {
+                audioBlob = file;
+                showStatus('uploadStatus', `已選擇：${file.name}`, 'success');
+                saveToLocal(file);
+            } else {
+                showStatus('uploadStatus', '請選擇音訊檔案', 'error');
+            }
+        }
+        
+        // 處理音檔
+        async function processAudio() {
+            const apiKey = document.getElementById('apiKey').value;
+            if (!apiKey) {
+                showStatus('uploadStatus', '請輸入 Gemini API Key', 'error');
+                return;
+            }
+            
+            if (!audioBlob) {
+                showStatus('uploadStatus', '請先錄音或上傳音檔', 'error');
+                return;
+            }
+            
+            // 儲存 API Key
+            localStorage.setItem('geminiApiKey', apiKey);
+            
+            // 顯示載入中
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('processBtn').disabled = true;
+            
+            try {
+                // 轉換音檔為 base64
+                const base64Audio = await blobToBase64(audioBlob);
+                
+                // 呼叫 Gemini API
+                const result = await callGeminiAPI(apiKey, base64Audio);
+                
+                // 顯示結果
+                displayResult(result);
+                
+                // 儲存到歷史
+                saveToHistory(result);
+                
+            } catch (error) {
+                showStatus('uploadStatus', '處理失敗：' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('processBtn').disabled = false;
+            }
+        }
+        
+        // 呼叫 Gemini API
+        async function callGeminiAPI(apiKey, base64Audio) {
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            
+            const prompt = `
+            請分析這個會議錄音並提供以下內容（使用繁體中文）：
+            
+            1. 會議摘要（100字內）
+            簡述會議的主要目的和結論
+            
+            2. 重要討論點
+            列出3-5個主要討論議題
+            
+            3. 決策事項
+            明確列出所有達成的決定
+            
+            4. 行動項目
+            包含任務、負責人（如果有提到）、期限
+            
+            5. 後續追蹤
+            需要在下次會議追蹤的事項
+            
+            請以結構化、易讀的格式呈現。
+            `;
+            
+            const requestBody = {
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        {
+                            inline_data: {
+                                mime_type: "audio/webm",
+                                data: base64Audio.split(',')[1]
+                            }
+                        }
+                    ]
+                }],
+                generationConfig: {
+                    temperature: 0.4,
+                    topK: 32,
+                    topP: 1,
+                    maxOutputTokens: 4096,
+                }
+            };
+            
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`API 錯誤: ${error}`);
+            }
+            
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+        
+        // 顯示結果
+        function displayResult(result) {
+            currentResult = result;
+            
+            // 解析並格式化結果
+            const formattedResult = formatResult(result);
+            
+            document.getElementById('resultContent').innerHTML = formattedResult;
+            document.getElementById('resultCard').style.display = 'block';
+            
+            // 滾動到結果
+            document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 格式化結果
+        function formatResult(text) {
+            // 將文字轉換為 HTML 格式
+            const sections = text.split(/\d+\.\s+/);
+            let html = '';
+            
+            sections.forEach((section, index) => {
+                if (section.trim()) {
+                    const lines = section.split('\n');
+                    const title = lines[0];
+                    const content = lines.slice(1).join('\n');
+                    
+                    html += `
+                        <div class="result-section">
+                            <h3>${title}</h3>
+                            <div>${content.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    `;
+                }
+            });
+            
+            return html || `<div class="result-section">${text.replace(/\n/g, '<br>')}</div>`;
+        }
+        
+        // 工具函數
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+        
+        function showStatus(elementId, message, type) {
+            const status = document.getElementById(elementId);
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        // 複製結果
+        function copyResult() {
+            navigator.clipboard.writeText(currentResult).then(() => {
+                showStatus('uploadStatus', '已複製到剪貼簿', 'success');
+            });
+        }
+        
+        // 下載結果
+        function downloadResult() {
+            const blob = new Blob([currentResult], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `會議記錄_${new Date().toLocaleDateString('zh-TW')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // 分享結果
+        async function shareResult() {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: '會議記錄',
+                        text: currentResult
+                    });
+                } catch (err) {
+                    console.log('分享取消或失敗');
+                }
+            } else {
+                // 降級處理：複製到剪貼簿
+                copyResult();
+            }
+        }
+        
+        // 上傳到 Google Sheets
+        async function uploadToSheets() {
+            // 取得儲存的 Script URL 或要求輸入
+            const savedUrl = localStorage.getItem('gasScriptUrl');
+            const scriptUrl = prompt(
+                '請輸入您的 Google Apps Script Web App URL:', 
+                savedUrl || ''
+            );
+            
+            if (!scriptUrl) {
+                showStatus('uploadStatus', '已取消上傳', 'info');
+                return;
+            }
+            
+            if (!currentResult) {
+                showStatus('uploadStatus', '沒有可上傳的資料', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('uploadStatus', '正在上傳到 Google Sheets...', 'info');
+                
+                // 解析結果為結構化資料
+                const structuredData = parseResultToStructure(currentResult);
+                
+                const data = {
+                    fileName: `錄音_${new Date().toLocaleDateString('zh-TW')}`,
+                    processingTime: new Date().toLocaleString('zh-TW'),
+                    duration: document.getElementById('timer').textContent,
+                    meetingSummary: structuredData.summary,
+                    keyPoints: structuredData.keyPoints,
+                    decisions: structuredData.decisions,
+                    actionItems: structuredData.actionItems,
+                    followUp: structuredData.followUp,
+                    fullTranscript: currentResult,
+                    source: 'PWA Meeting Recorder'
+                };
+                
+                const response = await fetch(scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                // 儲存 Script URL 供下次使用
+                localStorage.setItem('gasScriptUrl', scriptUrl);
+                
+                showStatus('uploadStatus', '✅ 已上傳到 Google Sheets！', 'success');
+                
+            } catch (err) {
+                showStatus('uploadStatus', '上傳失敗：' + err.message, 'error');
+            }
+        }
+        
+        // 解析結果為結構化資料
+        function parseResultToStructure(text) {
+            const structure = {
+                summary: '',
+                keyPoints: [],
+                decisions: [],
+                actionItems: [],
+                followUp: []
+            };
+            
+            // 簡單的解析邏輯，根據 Gemini 回傳的格式調整
+            const sections = text.split(/\d+\.\s+/);
+            
+            sections.forEach((section, index) => {
+                if (section.includes('摘要')) {
+                    structure.summary = section.replace(/.*摘要[：:]\s*/i, '').trim();
+                } else if (section.includes('討論')) {
+                    structure.keyPoints = section.split('\n').filter(line => line.trim());
+                } else if (section.includes('決策')) {
+                    structure.decisions = section.split('\n').filter(line => line.trim());
+                } else if (section.includes('行動')) {
+                    structure.actionItems = section.split('\n').filter(line => line.trim());
+                } else if (section.includes('追蹤')) {
+                    structure.followUp = section.split('\n').filter(line => line.trim());
+                }
+            });
+            
+            return structure;
+        }
+        
+        // 本地儲存
+        function saveToLocal(blob) {
+            // 儲存音檔資訊到 IndexedDB（如需要）
+            console.log('音檔已準備處理');
+        }
+        
+        function saveToHistory(result) {
+            const history = JSON.parse(localStorage.getItem('meetingHistory') || '[]');
+            const newEntry = {
+                id: Date.now(),
+                date: new Date().toISOString(),
+                content: result,
+                summary: result.substring(0, 100) + '...'
+            };
+            
+            history.unshift(newEntry);
+            
+            // 只保留最近 20 筆
+            if (history.length > 20) {
+                history.pop();
+            }
+            
+            localStorage.setItem('meetingHistory', JSON.stringify(history));
+            loadHistory();
+        }
+        
+        function loadHistory() {
+            const history = JSON.parse(localStorage.getItem('meetingHistory') || '[]');
+            const historyList = document.getElementById('historyList');
+            
+            if (history.length === 0) {
+                historyList.innerHTML = '<p style="text-align: center; color: #999;">暫無記錄</p>';
+                return;
+            }
+            
+            historyList.innerHTML = history.map(item => `
+                <div class="history-item" onclick="viewHistory(${item.id})">
+                    <div class="history-date">${new Date(item.date).toLocaleString('zh-TW')}</div>
+                    <div class="history-title">${item.summary}</div>
+                </div>
+            `).join('');
+        }
+        
+        function viewHistory(id) {
+            const history = JSON.parse(localStorage.getItem('meetingHistory') || '[]');
+            const item = history.find(h => h.id === id);
+            if (item) {
+                displayResult(item.content);
+                switchTab('record');
+            }
+        }
+        
+        // PWA 安裝
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('使用者接受安裝');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('installPrompt').style.display = 'none';
+                });
+            }
+        }
+    </script>
+</body>
+</html>
